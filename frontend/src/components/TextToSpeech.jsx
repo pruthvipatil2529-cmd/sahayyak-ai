@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Volume2, VolumeX, RotateCcw } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
-export default function TextToSpeech({ text, label = null, className = "" }) {
+export default function TextToSpeech({ text, label = null, iconOnly = false, className = "" }) {
   const { language, t } = useAccessibility();
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
@@ -52,27 +52,34 @@ export default function TextToSpeech({ text, label = null, className = "" }) {
 
   if (!isSupported) return null;
 
+  const displayLabel = label !== null ? label : t('listen');
+  const showText = !iconOnly && Boolean(displayLabel);
+
   return (
     <button
       type="button"
       onClick={handleSpeak}
-      aria-label={isSpeaking ? t('stopListening') : (label || t('listen'))}
-      title={isSpeaking ? t('stopListening') : (label || t('listen'))}
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+      aria-label={isSpeaking ? t('stopListening') : (displayLabel || t('listen'))}
+      title={isSpeaking ? t('stopListening') : (displayLabel || t('listen'))}
+      className={`inline-flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
         isSpeaking
-          ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse shadow'
-          : 'bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md ring-2 ring-amber-400/50'
+          : 'bg-teal-50 hover:bg-teal-100 text-teal-800 dark:bg-teal-950/70 dark:hover:bg-teal-900 dark:text-teal-200 border border-teal-200 dark:border-teal-700/80 hover:shadow-sm'
+      } ${
+        iconOnly
+          ? 'w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex-shrink-0'
+          : 'px-3 py-1.5 rounded-xl font-medium text-sm'
       } ${className}`}
     >
       {isSpeaking ? (
         <>
-          <VolumeX className="w-4 h-4" />
-          <span>{t('stopListening')}</span>
+          <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
+          {showText && <span className="font-semibold text-xs sm:text-sm">{t('stopListening')}</span>}
         </>
       ) : (
         <>
-          <Volume2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-          <span>{label || t('listen')}</span>
+          <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-teal-700 dark:text-teal-300" />
+          {showText && <span className="text-xs sm:text-sm font-semibold">{displayLabel}</span>}
         </>
       )}
     </button>

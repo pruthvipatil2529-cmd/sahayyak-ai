@@ -218,32 +218,47 @@ export default function Chat() {
                   </div>
                 )}
 
-                {/* Main Message Text */}
-                <div className="whitespace-pre-line text-base sm:text-lg leading-relaxed font-normal">
-                  {msg.content}
-                </div>
+                {/* Main Message Text (Warm intro/conversational text) */}
+                {msg.content && (
+                  <div className="whitespace-pre-line text-base sm:text-lg leading-relaxed font-normal text-slate-800 dark:text-slate-100">
+                    {msg.content}
+                  </div>
+                )}
 
-                {/* Structured Step Cards (PRD Section 10) */}
+                {/* Structured Step Cards */}
                 {msg.steps && msg.steps.length > 0 && (
-                  <div className="pt-2 space-y-3">
-                    <h4 className="font-bold text-sm text-teal-700 dark:text-teal-300 uppercase tracking-wider">
-                      Step-by-Step Instructions:
-                    </h4>
-                    <div className="space-y-2.5">
+                  <div className="pt-2 space-y-3.5">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                      <h4 className="font-bold text-xs sm:text-sm text-teal-800 dark:text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-teal-500" />
+                        Step-by-Step Instructions
+                      </h4>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {msg.steps.length} {msg.steps.length === 1 ? 'Step' : 'Steps'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
                       {msg.steps.map((s, sIdx) => (
                         <div
                           key={sIdx}
-                          className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-start gap-3"
+                          className="p-4 rounded-2xl bg-gradient-to-r from-slate-50 to-teal-50/20 dark:from-slate-800/80 dark:to-teal-950/20 border border-slate-200/90 dark:border-slate-700/80 shadow-xs hover:border-teal-300 dark:hover:border-teal-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                         >
-                          <span className="w-7 h-7 rounded-full bg-teal-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5">
-                            {s.step || sIdx + 1}
-                          </span>
-                          <div className="flex-1">
-                            <p className="text-slate-800 dark:text-slate-200 text-sm sm:text-base font-medium">
+                          <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                            <span className="w-8 h-8 rounded-full bg-teal-600 text-white flex-shrink-0 flex items-center justify-center font-bold text-sm shadow-sm mt-0.5">
+                              {s.step || sIdx + 1}
+                            </span>
+                            <p className="text-slate-900 dark:text-slate-100 text-base sm:text-lg font-medium leading-relaxed">
                               {s.text}
                             </p>
                           </div>
-                          <TextToSpeech text={s.text} label="" className="p-1" />
+                          <div className="flex items-center justify-end sm:justify-start pt-1 sm:pt-0 pl-11 sm:pl-0 flex-shrink-0">
+                            <TextToSpeech
+                              text={s.text}
+                              label={t('listen')}
+                              className="font-semibold text-xs sm:text-sm px-3.5 py-2 shadow-xs"
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -252,8 +267,18 @@ export default function Chat() {
 
                 {/* Audio Readout Toolbar for Assistant */}
                 {isAssistant && (
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <TextToSpeech text={msg.content} />
+                  <div className="pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Need the full answer read aloud?
+                    </span>
+                    <TextToSpeech
+                      text={
+                        msg.steps && msg.steps.length > 0
+                          ? `${msg.content ? msg.content + '. ' : ''}${msg.steps.map((s) => `Step ${s.step}: ${s.text}`).join('. ')}`
+                          : msg.content
+                      }
+                      label={t('listen')}
+                    />
                   </div>
                 )}
               </div>
