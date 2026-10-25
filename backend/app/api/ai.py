@@ -87,6 +87,8 @@ async def chat_with_ai(
     return AIChatResponse(
         conversation_id=active_conv_id,
         answer=ai_result.get("answer", ""),
+        intro=ai_result.get("intro"),
+        closing=ai_result.get("closing"),
         language=lang,
         steps=ai_result.get("steps", []),
         safety_warning=combined_warning,

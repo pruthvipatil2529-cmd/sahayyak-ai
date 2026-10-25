@@ -1,56 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, VolumeX, RotateCcw } from 'lucide-react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 export default function TextToSpeech({ text, label = null, iconOnly = false, className = "" }) {
   const { language, t } = useAccessibility();
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
 
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) {
-      setIsSupported(false);
+  const cleanSpokenText = (raw) => {
+    if (!raw) return '';
+    return raw
+      .replace(/[*_#`~>]/g, '')
+      .replace(/Step \d+:/gi, '')
+      .trim();
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.warn(e);
+      }
     }
-  }, []);
+    setIsSpeaking(false);
+  };
 
   const handleSpeak = () => {
-    if (!isSupported) {
+    if (isSpeaking) {
+      stopSpeaking();
+      return;
+    }
+
+    const clean = cleanSpokenText(text);
+    if (!clean) return;
+
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert("Text-to-speech audio is not supported in this browser.");
       return;
     }
 
-    if (isSpeaking) {
+    try {
       window.speechSynthesis.cancel();
+
+      const langCode = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = langCode;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis error:', err);
       setIsSpeaking(false);
-      return;
     }
-
-    window.speechSynthesis.cancel(); // Stop any previous speech
-
-    const cleanText = text.replace(/[*_#`]/g, ''); // strip markdown characters for natural speech
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-
-    // Set utterance language and speed
-    if (language === 'hi') {
-      utterance.lang = 'hi-IN';
-    } else if (language === 'mr') {
-      utterance.lang = 'mr-IN';
-    } else {
-      utterance.lang = 'en-IN';
-    }
-
-    // A comfortable, slightly calmer pace for seniors
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
   };
-
-  if (!isSupported) return null;
 
   const displayLabel = label !== null ? label : t('listen');
   const showText = !iconOnly && Boolean(displayLabel);

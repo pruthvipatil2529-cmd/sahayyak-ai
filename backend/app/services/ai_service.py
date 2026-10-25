@@ -153,12 +153,13 @@ class AIService:
                 ).strip()
                 clean_steps.append({"step": i + 1, "text": clean_text or str(s)})
 
-            # Assemble complete conversational text for TTS and message bubble
+            # Assemble conversational text for intro and closing (steps are rendered as dedicated interactive cards)
             body_parts = []
             if intro:
                 body_parts.append(intro)
-            if clean_steps:
-                step_lines = [f"{s['step']}. {s['text']}" for s in clean_steps]
+            if not clean_steps and raw_steps:
+                # Fallback if steps could not be structured cleanly
+                step_lines = [f"{i+1}. {s}" for i, s in enumerate(raw_steps)]
                 body_parts.append("\n".join(step_lines))
             if closing:
                 body_parts.append(closing)
@@ -167,6 +168,8 @@ class AIService:
 
             return {
                 "answer": answer,
+                "intro": intro,
+                "closing": closing,
                 "language": lang,
                 "steps": clean_steps,
                 "safety_warning": safety_tip if safety_tip else None,

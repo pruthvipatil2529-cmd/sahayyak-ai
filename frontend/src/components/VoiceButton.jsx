@@ -5,71 +5,83 @@ import { useAccessibility } from '../context/AccessibilityContext';
 export default function VoiceButton({ onTranscript, className = "" }) {
   const { language, t } = useAccessibility();
   const [isListening, setIsListening] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
   const recognitionRef = useRef(null);
 
+  const getLangCode = () => {
+    return language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+  };
+
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-      return;
+    const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = getLangCode();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0]?.[0]?.transcript;
+        if (transcript && onTranscript) {
+          onTranscript(transcript);
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition notice:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
     }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    // Set recognition language based on app language
-    if (language === 'hi') {
-      recognition.lang = 'hi-IN';
-    } else if (language === 'mr') {
-      recognition.lang = 'mr-IN';
-    } else {
-      recognition.lang = 'en-IN';
-    }
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript && onTranscript) {
-        onTranscript(transcript);
-      }
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event) => {
-      console.warn('Speech recognition notice:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
       }
     };
   }, [language, onTranscript]);
 
-  const toggleListening = () => {
-    if (!isSupported) {
-      alert("Voice input is not supported in this browser. You can still type your questions easily!");
+  const toggleListening = async () => {
+    if (isListening) {
+      setIsListening(false);
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
+    // Request audio stream permission first (triggers browser/WebView permission prompt if not yet granted)
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Release immediately once permission is established
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch (err) {
+      console.warn('Microphone permission request:', err);
+    }
+
+    if (recognitionRef.current) {
       try {
-        recognitionRef.current?.start();
+        recognitionRef.current.lang = getLangCode();
+        recognitionRef.current.start();
         setIsListening(true);
       } catch (err) {
-        console.warn('Error starting speech recognition:', err);
+        console.warn('Recognition start notice:', err);
+        setIsListening(false);
       }
+    } else {
+      alert("Microphone voice input is not supported in this browser/device.");
+      setIsListening(false);
     }
   };
 
@@ -79,7 +91,7 @@ export default function VoiceButton({ onTranscript, className = "" }) {
       onClick={toggleListening}
       aria-label={isListening ? "Listening... Tap to stop" : "Speak your question using microphone"}
       title={isListening ? "Listening... Tap to stop" : "Tap to speak your question"}
-      className={`relative inline-flex items-center justify-center p-3 rounded-full transition-all duration-300 ${
+      className={`relative inline-flex items-center justify-center p-3 rounded-full transition-all duration-300 cursor-pointer ${
         isListening
           ? 'bg-rose-600 text-white mic-recording shadow-lg shadow-rose-500/50 scale-105'
           : 'bg-teal-600 hover:bg-teal-700 text-white shadow-md hover:scale-105 active:scale-95'

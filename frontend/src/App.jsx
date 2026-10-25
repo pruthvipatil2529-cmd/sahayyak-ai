@@ -24,10 +24,9 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors selection:bg-teal-500 selection:text-white">
-      <AccessibilityBar />
       <Navbar />
 
-      <main className={`flex-1 ${isChatPage ? 'flex flex-col h-[calc(100dvh-120px)] sm:h-[calc(100dvh-130px)] overflow-hidden' : ''}`}>
+      <main className={`flex-1 ${isChatPage ? 'flex flex-col h-[calc(100dvh-72px)] sm:h-[calc(100dvh-80px)] overflow-hidden' : ''}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/chat" element={<Chat />} />

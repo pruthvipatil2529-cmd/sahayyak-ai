@@ -16,6 +16,8 @@ class AIChatRequest(BaseModel):
 class AIChatResponse(BaseModel):
     conversation_id: Optional[int] = None
     answer: str
+    intro: Optional[str] = None
+    closing: Optional[str] = None
     language: str
     steps: Optional[List[Dict[str, Any]]] = []
     safety_warning: Optional[str] = None
