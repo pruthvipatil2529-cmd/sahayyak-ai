@@ -10,8 +10,12 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Attach JWT token to requests if authenticated
+// Attach dynamic API URL and JWT token to requests if authenticated
 api.interceptors.request.use((config) => {
+  const customBaseUrl = localStorage.getItem('sahayyak_api_url');
+  if (customBaseUrl) {
+    config.baseURL = customBaseUrl;
+  }
   const token = localStorage.getItem('sahayyak_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

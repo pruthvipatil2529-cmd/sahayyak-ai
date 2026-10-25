@@ -34,8 +34,8 @@ if not exist "frontend\node_modules" (
 
 :: 3. Launch Backend in Separate Window
 echo.
-echo [3/4] Launching FastAPI Backend on http://localhost:8000...
-start "Sahayyak AI - Backend Server" cmd /k "cd /d %~dp0backend && venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+echo [3/4] Launching FastAPI Backend on port 8000 (all interfaces)...
+start "Sahayyak AI - Backend Server" cmd /k "cd /d %~dp0backend && venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 :: 4. Launch Frontend in Separate Window
 echo Launching React/Vite Frontend on http://localhost:5173...

@@ -37,10 +37,18 @@ app = FastAPI(
 
 # CORS Middleware (PRD Section 29)
 origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+origins.extend([
+    "capacitor://localhost",
+    "http://localhost",
+    "https://localhost",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:[0-9]+)?|capacitor://localhost)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
