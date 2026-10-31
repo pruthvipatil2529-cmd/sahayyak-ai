@@ -285,13 +285,13 @@ export default function GuideDetail() {
       <div className="bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
         <div className="space-y-1 text-center sm:text-left">
           <h3 className="text-xl sm:text-2xl font-extrabold">Need more help with this?</h3>
-          <p className="text-teal-100 text-base">Ask Sahayyak AI directly. We explain at your pace.</p>
+          <p className="text-teal-100 text-base">Ask {t('appFullName')} directly. We guide you step by step with zero complicated jargon.</p>
         </div>
         <Link
           to={`/chat?q=${encodeURIComponent(`Help me with: ${title}`)}`}
-          className="px-6 py-3.5 rounded-2xl bg-white hover:bg-teal-50 text-teal-800 font-extrabold text-base shadow transition whitespace-nowrap"
+          className="px-6 py-3.5 rounded-2xl bg-white hover:bg-teal-50 text-teal-800 font-extrabold text-base shadow transition whitespace-nowrap cursor-pointer"
         >
-          Ask AI Now
+          {t('askAiButton')}
         </Link>
       </div>
     </div>

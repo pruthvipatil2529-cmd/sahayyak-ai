@@ -2,7 +2,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Sahayyak AI"
+    PROJECT_NAME: str = "Sahayyak AI – Your Technology Guide"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
     

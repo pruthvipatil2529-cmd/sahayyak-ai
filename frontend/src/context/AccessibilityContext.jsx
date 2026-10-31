@@ -46,9 +46,13 @@ export const AccessibilityProvider = ({ children }) => {
     localStorage.setItem('sahayyak_contrast_mode', contrastMode);
   }, [contrastMode]);
 
-  // Persist language
+  // Persist language and update document lang attribute
   useEffect(() => {
     localStorage.setItem('sahayyak_language', language);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language;
+      document.documentElement.dir = 'ltr';
+    }
   }, [language]);
 
   // Translation lookup helper with fallback to English

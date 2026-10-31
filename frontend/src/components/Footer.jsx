@@ -16,9 +16,14 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold">
                 <HeartHandshake className="w-6 h-6" />
               </div>
-              <span className="text-2xl font-black text-white tracking-tight">
-                {t('appName')}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  {t('appName')}
+                </span>
+                <span className="text-xs font-bold text-teal-400">
+                  {t('appTagline')}
+                </span>
+              </div>
             </div>
             <p className="text-slate-400 text-base max-w-md leading-relaxed">
               Designed with immense care and patience for senior citizens and technology beginners. We believe everyone deserves to enjoy digital technology with confidence and total peace of mind.
@@ -75,7 +80,7 @@ export default function Footer() {
         {/* Disclaimer & Copyright */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-slate-400">
           <p>
-            © {new Date().getFullYear()} Sahayyak AI. Educational guidance only. Always verify bank details using official branches.
+            © {new Date().getFullYear()} {t('appFullName')}. Educational guidance only. Always verify bank details using official branches.
           </p>
           <p className="flex items-center gap-1.5 text-slate-400">
             Made with <Heart className="w-4 h-4 text-rose-500 fill-rose-500" /> for our elders.

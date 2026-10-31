@@ -56,9 +56,11 @@ export default function Home() {
     }
   };
 
-  const handleVoiceInput = (transcript) => {
-    // Navigate straight to chat with transcript
-    navigate(`/chat?q=${encodeURIComponent(transcript)}`);
+  const handleVoiceInput = (transcript, isFinal) => {
+    // Navigate straight to chat with recognized voice query
+    if (transcript && transcript.trim()) {
+      navigate(`/chat?q=${encodeURIComponent(transcript.trim())}`);
+    }
   };
 
   const handleToggleSave = async (guideId) => {
@@ -87,7 +89,7 @@ export default function Home() {
           {/* Welcome Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 font-bold text-sm tracking-wide shadow-sm">
             <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-            <span>{t('appName')} — {t('appTagline')}</span>
+            <span>{t('appName')} – {t('appTagline')}</span>
           </div>
 
           {/* Headline */}
@@ -135,11 +137,17 @@ export default function Home() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('searchPlaceholder')}
-                className="w-full pl-13 pr-32 py-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:border-teal-500 focus:outline-none shadow-md text-base sm:text-lg"
+                className="w-full pl-13 pr-36 py-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:border-teal-500 focus:outline-none shadow-md text-base sm:text-lg"
               />
+              <div className="absolute right-24 flex items-center">
+                <VoiceButton
+                  size="sm"
+                  onTranscript={(transcript) => setSearchQuery(transcript)}
+                />
+              </div>
               <button
                 type="submit"
-                className="absolute right-2.5 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm transition"
+                className="absolute right-2.5 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm transition cursor-pointer"
               >
                 Search
               </button>

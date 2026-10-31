@@ -22,6 +22,7 @@ class AIChatResponse(BaseModel):
     steps: Optional[List[Dict[str, Any]]] = []
     safety_warning: Optional[str] = None
     related_guides: Optional[List[Dict[str, Any]]] = []
+    topic: Optional[str] = None
 
 class MessageOut(BaseModel):
     id: int

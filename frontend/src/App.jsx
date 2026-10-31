@@ -24,6 +24,7 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors selection:bg-teal-500 selection:text-white">
+      {!isChatPage && <AccessibilityBar />}
       <Navbar />
 
       <main className={`flex-1 ${isChatPage ? 'flex flex-col h-[calc(100dvh-72px)] sm:h-[calc(100dvh-80px)] overflow-hidden' : ''}`}>

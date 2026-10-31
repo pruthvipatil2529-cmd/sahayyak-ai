@@ -40,7 +40,13 @@ async def chat_with_ai(
         db_guides=guides
     )
 
-    combined_warning = safety_warning or ai_result.get("safety_warning")
+    raw_warning = safety_warning or ai_result.get("safety_warning")
+    if isinstance(raw_warning, dict):
+        combined_warning = raw_warning.get(f"tip_{lang}") or raw_warning.get("tip") or str(raw_warning)
+    elif raw_warning:
+        combined_warning = str(raw_warning)
+    else:
+        combined_warning = None
 
     # 5. Persist conversation and messages if authenticated or continuing conversation
     active_conv_id = req.conversation_id
@@ -92,5 +98,6 @@ async def chat_with_ai(
         language=lang,
         steps=ai_result.get("steps", []),
         safety_warning=combined_warning,
-        related_guides=ai_result.get("related_guides", [])
+        related_guides=ai_result.get("related_guides", []),
+        topic=ai_result.get("topic")
     )

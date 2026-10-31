@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 25000,
 });
 
 // Attach dynamic API URL and JWT token to requests if authenticated

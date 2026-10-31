@@ -5,6 +5,7 @@ import { guidesAPI, categoriesAPI, savedGuidesAPI } from '../api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAuth } from '../context/AuthContext';
 import GuideCard from '../components/GuideCard';
+import VoiceButton from '../components/VoiceButton';
 
 export default function GuideLibrary() {
   const { language, t } = useAccessibility();
@@ -93,16 +94,22 @@ export default function GuideLibrary() {
 
       {/* Search & Filters */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
-        {/* Search input */}
-        <div className="relative">
+        {/* Search input with Voice button */}
+        <div className="relative flex items-center">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 text-base"
+            className="w-full pl-12 pr-14 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 text-base"
           />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <VoiceButton
+              size="sm"
+              onTranscript={(transcript) => setSearchTerm(transcript)}
+            />
+          </div>
         </div>
 
         {/* Category Pills Filter */}
