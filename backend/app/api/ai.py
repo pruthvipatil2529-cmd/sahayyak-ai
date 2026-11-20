@@ -100,5 +100,7 @@ async def chat_with_ai(
         safety_warning=combined_warning,
         related_guides=ai_result.get("related_guides", []),
         topic=ai_result.get("topic"),
-        options=ai_result.get("options", [])
+        options=ai_result.get("options", []),
+        interpreted_query=ai_result.get("interpreted_query"),
+        api_error=ai_result.get("api_error")
     )

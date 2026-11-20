@@ -1,5 +1,14 @@
 {
   "appId": "com.sahayyak.app",
   "appName": "Sahayyak AI",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "*"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
 }

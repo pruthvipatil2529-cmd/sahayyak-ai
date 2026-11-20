@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Send, Sparkles, Trash2, Bot, User, ShieldCheck, 
   ArrowLeft, Lightbulb, Globe, BookOpen, ChevronRight,
-  MessageCircle, Wifi, Settings, Phone, ArrowRight
+  MessageCircle, Wifi, Settings, Phone, ArrowRight, RotateCcw
 } from 'lucide-react';
 import { aiAPI } from '../api';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -160,7 +160,9 @@ export default function Chat() {
         related_guides: response.related_guides || [],
         topic: response.topic || 'general',
         options: response.options || [],
-        query: query.trim()
+        query: query.trim(),
+        interpreted_query: response.interpreted_query || null,
+        api_error: response.api_error || null
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -169,14 +171,15 @@ export default function Chat() {
         ...prev,
         {
           role: 'assistant',
-          content: 'I had a little trouble connecting right now, but please do not worry. You can also explore our step-by-step Guides Library anytime.',
-          intro: 'I had a little trouble connecting right now, but please do not worry. You can also explore our step-by-step Guides Library anytime.',
+          content: 'I had a little trouble connecting right now, but please do not worry. You can also explore our step-by-step Guides Library anytime or tap Try Again below.',
+          intro: 'I had a little trouble connecting right now, but please do not worry. You can also explore our step-by-step Guides Library anytime or tap Try Again below.',
           closing: null,
           steps: [],
           safety_warning: null,
           related_guides: [],
           topic: 'general',
-          query: query.trim()
+          query: query.trim(),
+          api_error: err?.message || 'Network / connection error'
         },
       ]);
     } finally {
@@ -368,6 +371,44 @@ export default function Chat() {
                   queryText={queryText}
                   steps={msg.steps || []}
                 />
+
+                {/* Intelligent Typo / Spelling Correction Indicator */}
+                {msg.interpreted_query && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                    <span>
+                      {language === 'hi'
+                        ? `समझा गया: "${msg.interpreted_query}"`
+                        : language === 'mr'
+                          ? `समजले: "${msg.interpreted_query}"`
+                          : `Understood as: "${msg.interpreted_query}"`}
+                    </span>
+                  </div>
+                )}
+
+                {/* Diagnostic API Connection Error Banner & Retry Button */}
+                {msg.api_error && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-300 text-xs sm:text-sm space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold flex items-center gap-1.5">
+                        ⚠️ {language === 'hi' ? 'कनेक्शन सूचना' : language === 'mr' ? 'कनेक्शन सूचना' : 'Connection Notice'}
+                      </span>
+                      {queryText && (
+                        <button
+                          type="button"
+                          onClick={() => handleSendMessage(queryText)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-xs active:scale-95 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>{language === 'hi' ? 'पुनः प्रयास करें' : language === 'mr' ? 'पुन्हा प्रयत्न करा' : 'Try Again'}</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="font-mono text-[11px] opacity-90 break-all bg-white/70 dark:bg-slate-900/70 p-2 rounded-lg">
+                      {msg.api_error}
+                    </p>
+                  </div>
+                )}
 
                 {/* Safety Warning Alert */}
                 {msg.safety_warning && (

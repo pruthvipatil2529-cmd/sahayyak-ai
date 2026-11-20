@@ -31,13 +31,18 @@ api.interceptors.response.use(
   (error) => {
     let friendlyMessage = 'Sorry, something went wrong. Please try again.';
     if (error.response) {
-      if (error.response.status === 401) {
+      const status = error.response.status;
+      if (status === 401) {
         friendlyMessage = 'Please log in to continue.';
       } else if (error.response.data && error.response.data.detail) {
-        friendlyMessage = error.response.data.detail;
+        friendlyMessage = `[HTTP ${status}] ${error.response.data.detail}`;
+      } else {
+        friendlyMessage = `Server returned HTTP ${status}: ${error.response.statusText || 'Request failed'}`;
       }
     } else if (error.request) {
-      friendlyMessage = 'Could not reach Sahayyak server. Please make sure the backend is running.';
+      friendlyMessage = `Could not reach Sahayyak server (${error.code || error.message || 'Network Timeout'}). Please check your connection or backend URL.`;
+    } else {
+      friendlyMessage = error.message || 'Unknown network error';
     }
     return Promise.reject(new Error(friendlyMessage));
   }

@@ -4,8 +4,21 @@ import asyncio
 import re
 from typing import Dict, Any, List, Optional
 from app.core.config import settings
+from app.services.text_normalizer import normalize_user_query
 
 logger = logging.getLogger(__name__)
+
+COMMON_STOP_WORDS = {
+    "want", "need", "like", "how", "what", "where", "when", "why", "who", "which",
+    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
+    "by", "from", "up", "about", "into", "over", "after", "is", "am", "are", "was",
+    "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "can",
+    "could", "should", "would", "shall", "will", "may", "might", "must",
+    "i", "me", "my", "myself", "we", "our", "ours", "you", "your", "yours", "he", "him",
+    "his", "she", "her", "hers", "it", "its", "they", "them", "their", "please", "plz",
+    "tell", "show", "help", "guide", "know", "learn", "teach", "phone", "mobile",
+    "device", "screen", "karo", "kaise", "karen", "kasa", "karaycha"
+}
 
 SYSTEM_PROMPT = """You are Sahayyak AI – Your Technology Guide (सहाय्यक AI – आपका तकनीक मार्गदर्शक / सहाय्यक AI – तुमचा तंत्रज्ञान मार्गदर्शक).
 You are an extraordinarily kind, patient, respectful, and loving digital teacher and technology guide.
@@ -91,7 +104,10 @@ You MUST ALWAYS respond with a single valid JSON object with these exact keys:
 class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        self.model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+        raw_model = settings.GEMINI_MODEL or "gemini-1.5-flash"
+        if "3.5" in raw_model or raw_model == "gemini-pro":
+            raw_model = "gemini-1.5-flash"
+        self.model_name = raw_model
         self._gemini_client = None
         self._init_gemini()
 
@@ -123,17 +139,23 @@ class AIService:
     ) -> Dict[str, Any]:
         """
         Dynamically generates an empathetic, elder-friendly response using the Gemini API.
-        Includes robust model fallback and curated knowledge guide integration.
+        Includes spelling correction, robust model fallback, and curated knowledge guide integration.
         """
         lang = language if language in ["en", "hi", "mr"] else "en"
-        related = self._find_related_guides(message, db_guides)
-        detected_topic = self._detect_topic_from_text(message)
+
+        # Intelligent Spelling Correction (Pre-processing)
+        clean_msg, was_corrected = normalize_user_query(message)
+        interpreted_query = clean_msg if was_corrected else None
+
+        related = self._find_related_guides(clean_msg, db_guides)
+        detected_topic = self._detect_topic_from_text(clean_msg)
 
         # Intent Routing: Payment action vs. Payment safety vs. App identification
-        is_action = self._is_payment_action_query(message)
-        is_safety = self._is_safety_query(message)
-        app_name = self._user_specified_payment_app(message)
-        is_app_only = message.strip().lower() in [
+        is_action = self._is_payment_action_query(clean_msg)
+        is_safety = self._is_safety_query(clean_msg)
+        app_name = self._user_specified_payment_app(clean_msg)
+        clean_lower = clean_msg.strip().lower()
+        is_app_only = clean_lower in [
             "google pay", "gpay", "phonepe", "paytm", "bhim", "bank app", "other upi / bank app",
             "गूगल पे", "फोनपे", "पेटीएम"
         ]
@@ -141,16 +163,24 @@ class AIService:
         if (is_action or is_app_only) and not is_safety:
             if not app_name:
                 # Requirement 2: Payment App Selection Flow (clickable options, no guessing, no safety rules)
-                return self._build_payment_disambiguation_response(message, lang, related)
+                resp = self._build_payment_disambiguation_response(clean_msg, lang, related)
+                resp["interpreted_query"] = interpreted_query
+                resp["api_error"] = None
+                return resp
             else:
                 # Requirement 3: Visual App Icon as Step 1 + Transfer steps
-                return self._build_payment_steps_response(app_name, message, lang, related)
+                resp = self._build_payment_steps_response(app_name, clean_msg, lang, related)
+                resp["interpreted_query"] = interpreted_query
+                resp["api_error"] = None
+                return resp
 
         # 1. Check if Gemini client is initialized
         if not self._gemini_client:
             # Fallback to database guide if matches
-            guide_resp = self._response_from_guides(message, lang, db_guides, related)
+            guide_resp = self._response_from_guides(clean_msg, lang, db_guides, related)
             if guide_resp:
+                guide_resp["interpreted_query"] = interpreted_query
+                guide_resp["api_error"] = "Gemini API client not initialized. Served from verified offline guides."
                 return guide_resp
 
             missing_key_messages = {
@@ -166,16 +196,22 @@ class AIService:
                 "steps": [],
                 "safety_warning": None,
                 "related_guides": related,
-                "topic": detected_topic
+                "topic": detected_topic,
+                "interpreted_query": interpreted_query,
+                "api_error": "No GEMINI_API_KEY configured."
             }
 
-        # 2. Build dynamic prompt with conversation context
+        # 2. Build dynamic prompt with conversation context and spelling tolerance
         lang_names = {"en": "English", "hi": "Hindi (हिंदी)", "mr": "Marathi (मराठी)"}
         prompt_parts = [
             f"Target Language: {lang_names.get(lang, 'English')}",
             f"Important: The response MUST be entirely in {lang_names.get(lang, 'English')}.",
-            f"User Question: {message}"
+            f"User Question: {clean_msg}"
         ]
+
+        if was_corrected:
+            prompt_parts.append(f"Original User Input (typo-tolerant): {message}")
+            prompt_parts.append("Note: The user asked using typos, abbreviations, or broken phrasing. Answer directly and kindly without commenting on their spelling.")
 
         if conversation_history:
             recent_context = []
@@ -191,11 +227,11 @@ class AIService:
 
         # 3. Call Gemini dynamically with model fallback
         raw_text = None
-        models_to_try = [self.model_name, "gemini-1.5-flash"]
-        # Deduplicate while preserving order
+        last_api_error = None
+        models_to_try = [self.model_name, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
         unique_models = []
         for m in models_to_try:
-            if m and m not in unique_models:
+            if m and m not in unique_models and "3.5" not in m:
                 unique_models.append(m)
 
         for model_candidate in unique_models:
@@ -208,13 +244,14 @@ class AIService:
                 )
                 response = await asyncio.wait_for(
                     asyncio.to_thread(client.generate_content, prompt_text),
-                    timeout=3.5
+                    timeout=5.0
                 )
                 if response and response.text:
                     raw_text = response.text
                     break
             except Exception as e:
-                logger.warning(f"Gemini call with model {model_candidate} failed: {e}. Trying next fallback...")
+                last_api_error = f"{type(e).__name__}: {str(e)}"
+                logger.warning(f"Gemini call with model {model_candidate} failed: {last_api_error}. Trying next fallback...")
                 continue
 
         if raw_text:
@@ -255,31 +292,38 @@ class AIService:
                     "steps": clean_steps,
                     "safety_warning": safety_tip if safety_tip else None,
                     "related_guides": related,
-                    "topic": topic
+                    "topic": topic,
+                    "interpreted_query": interpreted_query,
+                    "api_error": None
                 }
             except Exception as e:
                 logger.error(f"Error parsing Gemini response: {e}")
 
         # 4. Fallback to knowledge database guide if API fails or times out
-        guide_resp = self._response_from_guides(message, lang, db_guides, related)
+        guide_resp = self._response_from_guides(clean_msg, lang, db_guides, related)
         if guide_resp:
+            guide_resp["interpreted_query"] = interpreted_query
+            guide_resp["api_error"] = last_api_error
             return guide_resp
 
-        # 5. Default encouraging error response
+        # 5. Default encouraging error response with exposed diagnostic error
         error_messages = {
             "en": "Dear friend, I am Sahayyak AI – Your Technology Guide. I am having a slight connection delay right now, but please do not worry! Please try asking again in a moment, or select any guide below.",
             "hi": "नमस्ते जी! मैं सहाय्यक AI – आपका तकनीक मार्गदर्शक हूँ। इस समय इंटरनेट से जुड़ने में थोड़ी रुकावट आ रही है। कृपया कुछ पलों बाद पुनः पूछें या नीचे दी गई गाइड देखें।",
             "mr": "नमस्कार! मी सहाय्यक AI – तुमचा तंत्रज्ञान मार्गदर्शक आहे. इंटरनेट सर्व्हरशी संपर्क साधण्यात थोडी अडचण येत आहे. कृपया काही क्षणांनंतर पुन्हा विचारा किंवा खालील मार्गदर्शक पहा."
         }
+        err_msg = error_messages.get(lang, error_messages["en"])
         return {
-            "answer": error_messages.get(lang, error_messages["en"]),
-            "intro": error_messages.get(lang, error_messages["en"]),
+            "answer": err_msg,
+            "intro": err_msg,
             "closing": None,
             "language": lang,
             "steps": [],
             "safety_warning": None,
             "related_guides": related,
-            "topic": detected_topic
+            "topic": detected_topic,
+            "interpreted_query": interpreted_query,
+            "api_error": last_api_error
         }
 
     def _detect_topic_from_text(self, text: str) -> str:
@@ -610,7 +654,13 @@ class AIService:
             return []
         is_action = self._is_payment_action_query(query)
         is_safety = self._is_safety_query(query)
-        q_words = [w.lower() for w in re.split(r"[\s,?!.]+", query) if len(w) > 2]
+        q_words = [
+            w.lower() for w in re.split(r"[\s,?!.]+", query)
+            if len(w) > 2 and w.lower() not in COMMON_STOP_WORDS
+        ]
+        if not q_words:
+            return []
+
         results = []
         for g in db_guides:
             title_lower = getattr(g, "title", "").lower()
@@ -622,7 +672,11 @@ class AIService:
                 if any(w in title_lower or w in tags_lower for w in ["safely", "golden rules", "scam", "fraud", "सुरक्षित"]):
                     continue
 
-            if any(w in title_lower or w in tags_lower or w in desc_lower for w in q_words):
+            # Prioritize title and tags matching
+            title_or_tags_match = any(w in title_lower or w in tags_lower for w in q_words)
+            desc_match_count = sum(1 for w in q_words if w in desc_lower)
+
+            if title_or_tags_match or desc_match_count >= 2:
                 results.append({
                     "id": g.id,
                     "title": g.title,
@@ -648,8 +702,14 @@ class AIService:
         is_action = self._is_payment_action_query(message)
         is_safety = self._is_safety_query(message)
 
-        # Look for the best matching guide
-        q_words = [w.lower() for w in re.split(r"[\s,?!.]+", message) if len(w) > 2]
+        # Look for the best matching guide using non-stop keywords
+        q_words = [
+            w.lower() for w in re.split(r"[\s,?!.]+", message)
+            if len(w) > 2 and w.lower() not in COMMON_STOP_WORDS
+        ]
+        if not q_words:
+            return None
+
         best_guide = None
         best_score = 0
         for g in db_guides:
@@ -661,7 +721,12 @@ class AIService:
                 if any(w in title_lower or w in tags_lower for w in ["safely", "golden rules", "scam", "fraud", "सुरक्षित"]):
                     continue
 
-            score = sum(1 for w in q_words if w in title_lower or w in tags_lower)
+            score = 0
+            for w in q_words:
+                if w in title_lower:
+                    score += 3
+                elif w in tags_lower:
+                    score += 2
 
             # Extra weight for explicit intent match
             if is_safety and any(w in title_lower for w in ["safely", "safety", "golden rules"]):

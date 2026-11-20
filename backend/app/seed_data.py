@@ -332,6 +332,62 @@ GUIDES_DATA = [
         ]
     },
     {
+        "category_slug": "payments",
+        "title": "How to Book Train Tickets Online (IRCTC & ConfirmTkt)",
+        "title_hi": "ऑनलाइन ट्रेन टिकट कैसे बुक करें (IRCTC और ConfirmTkt)",
+        "title_mr": "ऑनलाइन रेल्वे तिकीट कसे बुक करावे (IRCTC आणि ConfirmTkt)",
+        "description": "Step-by-step guide to booking train tickets safely on your mobile using IRCTC, ConfirmTkt, or Google Pay.",
+        "description_hi": "अपने मोबाइल पर IRCTC या Google Pay से सुरक्षित तरीके से ट्रेन टिकट बुक करने का आसान तरीका।",
+        "description_mr": "मोबाईलवरून IRCTC किंवा Google Pay द्वारे सुरक्षित रेल्वे तिकीट बुक करण्याची सोपी पद्धत.",
+        "difficulty": "Easy",
+        "tags": "train, ticket, irctc, confirmtkt, booking, travel, railway, रेल, ट्रेन, तिकीट, टिकट",
+        "steps": [
+            {
+                "step_number": 1,
+                "title": "Open Booking App",
+                "instruction": "Open the IRCTC Rail Connect app, ConfirmTkt, or Google Pay on your phone.",
+                "instruction_hi": "अपने फोन पर IRCTC Rail Connect ऐप, ConfirmTkt या Google Pay खोलें।",
+                "instruction_mr": "तुमच्या फोनवर IRCTC Rail Connect ॲप, ConfirmTkt किंवा Google Pay उघडा.",
+                "tip": "ConfirmTkt or Google Pay has a very simple interface for beginners."
+            },
+            {
+                "step_number": 2,
+                "title": "Enter Stations and Date",
+                "instruction": "Type your starting station (From) and destination station (To), then select your travel date.",
+                "instruction_hi": "शुरुआती स्टेशन (From) और गंतव्य स्टेशन (To) लिखें, फिर अपनी यात्रा की तारीख चुनें।",
+                "instruction_mr": "निघण्याचे स्टेशन (From) आणि पोहोचण्याचे स्टेशन (To) टाका, त्यानंतर प्रवासाची तारीख निवडा.",
+                "tip": "Tap 'Search Trains' to see all available trains."
+            },
+            {
+                "step_number": 3,
+                "title": "Select Train and Class",
+                "instruction": "Choose your preferred train and seat class (Sleeper SL, 3rd AC 3A, or 2nd AC 2A) with green Available status.",
+                "instruction_hi": "अपनी पसंदीदा ट्रेन और सीट क्लास (SL, 3A या 2A) चुनें जहाँ हरे रंग में Available लिखा हो।",
+                "instruction_mr": "तुमची आवडती ट्रेन आणि प्रवासाचा वर्ग (SL, 3A किंवा 2A) निवडा जिथे हिरव्या रंगात Available दिसेल.",
+                "tip": "Green means confirmed seats are available; WL means waiting list."
+            },
+            {
+                "step_number": 4,
+                "title": "Add Passenger Details",
+                "instruction": "Enter passenger name, age, gender, and your berth preference (Lower berth is best for seniors).",
+                "instruction_hi": "यात्री का नाम, उम्र, लिंग दर्ज करें (बुजुर्गों के लिए Lower Berth सबसे आरामदायक होती है)।",
+                "instruction_mr": "प्रवाशाचे नाव, वय आणि लिंग टाका (ज्येष्ठ नागरिकांसाठी Lower Berth सर्वात सोयीची असते).",
+                "tip": "Make sure the name matches your official Aadhaar card."
+            },
+            {
+                "step_number": 5,
+                "title": "Pay and Get Confirmation",
+                "instruction": "Select UPI (Google Pay / PhonePe) to pay securely. You will immediately receive a digital ticket with your PNR number and coach/seat details via SMS.",
+                "instruction_hi": "सुरक्षित भुगतान के लिए UPI (GPay/PhonePe) चुनें। आपको तुरंत SMS द्वारा PNR नंबर और सीट नंबर मिल जाएगा।",
+                "instruction_mr": "सुरक्षित पेमेंटसाठी UPI निवडा. तुम्हाला लगेच SMS द्वारे PNR नंबर आणि सीट नंबरसह डिजिटल तिकीट मिळेल.",
+                "tip": "Save the SMS or download the PDF ticket on your phone."
+            }
+        ],
+        "safety_tips": [
+            {"tip": "Never pay extra money to unauthorized agents. Official ticket prices are strictly government regulated.", "tip_hi": "अनधिकृत एजेंटों को अतिरिक्त पैसे कभी न दें। टिकट की दरें सरकार द्वारा तय होती हैं।", "tip_mr": "अनधिकृत दलालांना जास्तीचे पैसे देऊ नका. तिकीटाचे दर सरकारी नियमांनुसारच असतात."}
+        ]
+    },
+    {
         "category_slug": "smartphone",
         "title": "How to Increase Text Size on Your Phone",
         "title_hi": "अपने फोन पर फॉन्ट/अक्षरों का आकार कैसे बढ़ाएं",

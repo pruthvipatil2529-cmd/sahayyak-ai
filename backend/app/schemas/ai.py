@@ -24,6 +24,8 @@ class AIChatResponse(BaseModel):
     related_guides: Optional[List[Dict[str, Any]]] = []
     topic: Optional[str] = None
     options: Optional[List[Dict[str, Any]]] = []
+    interpreted_query: Optional[str] = None
+    api_error: Optional[str] = None
 
 class MessageOut(BaseModel):
     id: int
