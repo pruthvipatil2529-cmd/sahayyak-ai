@@ -23,6 +23,7 @@ class AIChatResponse(BaseModel):
     safety_warning: Optional[str] = None
     related_guides: Optional[List[Dict[str, Any]]] = []
     topic: Optional[str] = None
+    options: Optional[List[Dict[str, Any]]] = []
 
 class MessageOut(BaseModel):
     id: int

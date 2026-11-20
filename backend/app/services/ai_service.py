@@ -129,6 +129,23 @@ class AIService:
         related = self._find_related_guides(message, db_guides)
         detected_topic = self._detect_topic_from_text(message)
 
+        # Intent Routing: Payment action vs. Payment safety vs. App identification
+        is_action = self._is_payment_action_query(message)
+        is_safety = self._is_safety_query(message)
+        app_name = self._user_specified_payment_app(message)
+        is_app_only = message.strip().lower() in [
+            "google pay", "gpay", "phonepe", "paytm", "bhim", "bank app", "other upi / bank app",
+            "गूगल पे", "फोनपे", "पेटीएम"
+        ]
+
+        if (is_action or is_app_only) and not is_safety:
+            if not app_name:
+                # Requirement 2: Payment App Selection Flow (clickable options, no guessing, no safety rules)
+                return self._build_payment_disambiguation_response(message, lang, related)
+            else:
+                # Requirement 3: Visual App Icon as Step 1 + Transfer steps
+                return self._build_payment_steps_response(app_name, message, lang, related)
+
         # 1. Check if Gemini client is initialized
         if not self._gemini_client:
             # Fallback to database guide if matches
@@ -174,7 +191,7 @@ class AIService:
 
         # 3. Call Gemini dynamically with model fallback
         raw_text = None
-        models_to_try = [self.model_name, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        models_to_try = [self.model_name, "gemini-1.5-flash"]
         # Deduplicate while preserving order
         unique_models = []
         for m in models_to_try:
@@ -191,7 +208,7 @@ class AIService:
                 )
                 response = await asyncio.wait_for(
                     asyncio.to_thread(client.generate_content, prompt_text),
-                    timeout=14.0
+                    timeout=3.5
                 )
                 if response and response.text:
                     raw_text = response.text
@@ -272,7 +289,7 @@ class AIService:
             return "whatsapp"
         if any(w in lower for w in ["wifi", "wi-fi", "वाय-फाय", "वायफाय", "internet", "इंटरनेट", "data"]):
             return "wifi"
-        if any(w in lower for w in ["upi", "gpay", "google pay", "phonepe", "paytm", "पेटीएम", "पैसे", "money", "payment", "pin"]):
+        if any(w in lower for w in ["upi", "gpay", "google pay", "phonepe", "paytm", "पेटीएम", "पैसे", "money", "payment", "pay", "send money", "transfer", "भेजें", "पाठवा"]):
             return "upi"
         if any(w in lower for w in ["youtube", "यूट्यूब", "video", "गाना", "गाणी", "व्हिडिओ"]):
             return "youtube"
@@ -287,6 +304,278 @@ class AIService:
         if any(w in lower for w in ["camera", "photo", "फोटो", "कॅमेरा", "gallery", "गैलरी"]):
             return "camera"
         return "general"
+
+    def _is_safety_query(self, text: str) -> bool:
+        """Determines if the user query is specifically asking about safety/scam/fraud
+        (as opposed to a transactional how-to like 'how to pay' or 'send money')."""
+        lower = text.lower()
+        safety_keywords = [
+            "safe", "safely", "safety", "scam", "fraud", "fake", "cheat",
+            "golden rule", "secure", "security", "hack", "phishing",
+            "otp", "stolen", "suspicious", "block", "report",
+            "सुरक्षित", "धोखा", "धोखाधड़ी", "ठगी", "फ्रॉड",
+            "सुरक्षा", "फसवणूक", "चोरी", "सुरक्षित वापर"
+        ]
+        return any(kw in lower for kw in safety_keywords)
+
+    def _is_payment_action_query(self, text: str) -> bool:
+        """Determines if the user is asking HOW to perform a payment action
+        (send, pay, transfer, check balance) rather than asking about safety."""
+        lower = text.lower()
+        action_patterns = [
+            "how to pay", "how to send", "how to transfer", "send money",
+            "pay my", "pay to", "pay someone", "transfer money", "send ₹", "send rs",
+            "भुगतान कैसे", "पैसे कैसे भेजें", "पैसे भेजना", "पैसे ट्रांसफर",
+            "पैसे कसे पाठवावे", "पैसे पाठवा", "पेमेंट कसे",
+            "pay bill", "recharge", "check balance", "बैलेंस", "रिचार्ज",
+            "how do i pay", "how can i pay", "how can i send",
+            "how do i send money", "how to make payment"
+        ]
+        return any(p in lower for p in action_patterns)
+
+    def _user_specified_payment_app(self, text: str) -> Optional[str]:
+        """Check if user already named a specific payment app. Returns the app name or None."""
+        lower = text.lower()
+        if any(w in lower for w in ["google pay", "gpay", "g-pay"]):
+            return "Google Pay"
+        if any(w in lower for w in ["phonepe", "phone pe"]):
+            return "PhonePe"
+        if any(w in lower for w in ["paytm", "pay tm"]):
+            return "Paytm"
+        if any(w in lower for w in ["bhim"]):
+            return "BHIM"
+        if any(w in lower for w in ["bank app", "yono", "sbi", "hdfc", "icici"]):
+            return "Bank App"
+        return None
+
+    def _extract_payment_details(self, text: str) -> Dict[str, Optional[str]]:
+        """Extracts amount and recipient name or relation from payment query if present."""
+        amount = None
+        amt_match = re.search(r'(?:₹|rs\.?|inr|rupees)?\s*(\d+(?:,\d+)?)\s*(?:rs\.?|inr|rupees)?', text, re.IGNORECASE)
+        if amt_match:
+            digits = amt_match.group(1).replace(',', '')
+            if digits and int(digits) > 0:
+                amount = f"₹{amt_match.group(1)}"
+
+        recipient = None
+        for hint in ["son", "daughter", "father", "mother", "brother", "sister", "friend", "wife", "husband",
+                     "shopkeeper", "grocery", "milkman", "doctor", "landlord", "relative",
+                     "मुलगा", "मुलगी", "आई", "वडील", "भाऊ", "बहीण", "मित्र", "दुकानदार",
+                     "बेटा", "बेटी", "पिताजी", "माताजी", "भाई", "बहन", "दोस्त"]:
+            if hint in text.lower():
+                recipient = hint
+                break
+
+        return {"amount": amount, "recipient": recipient}
+
+    def _build_payment_disambiguation_response(
+        self,
+        message: str,
+        lang: str,
+        related: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Requirement 2: Disambiguates payment apps by providing clickable options."""
+        details = self._extract_payment_details(message)
+        amt_str = f" {details['amount']}" if details["amount"] else ""
+        rec_str = f" to {details['recipient']}" if details["recipient"] else ""
+        context_suffix = f"{amt_str}{rec_str}".strip()
+        if not context_suffix:
+            context_suffix = "money"
+
+        intros = {
+            "en": "I am here to guide you step-by-step! Because each payment app looks a little different on your screen, which payment app are you using on your phone? Please choose one:",
+            "hi": "नमस्ते जी! मैं बहुत ही सरल तरीके से आपको पैसे भेजने के कदम बताऊंगा। क्योंकि हर ऐप स्क्रीन पर थोड़ा अलग दिखता है, आप अपने फोन पर कौन सा पेमेंट ऐप इस्तेमाल करते हैं? कृपया नीचे दिए गए विकल्पों में से एक चुनें:",
+            "mr": "नमस्कार! मी तुम्हाला अगदी सोप्या पद्धतीने पैसे पाठवण्याच्या पायऱ्या समजावून सांगेन. प्रत्येक ॲप स्क्रीनवर थोडे वेगळे दिसत असल्यामुळे, तुम्ही तुमच्या मोबाईलमध्ये कोणते पेमेंट ॲप वापरत आहात? कृपया खालीलपैकी एका पर्यायावर स्पर्श करा:"
+        }
+
+        safety_tips = {
+            "en": "Golden Safety Rule: Your secret UPI PIN is ONLY entered to SEND money. You NEVER need to enter your PIN or scan a QR code to RECEIVE money!",
+            "hi": "स्वर्ण सुरक्षा नियम: आपका गुप्त UPI PIN केवल पैसे भेजने के लिए दर्ज किया जाता है। पैसे प्राप्त करने के लिए कभी भी PIN दर्ज करने या QR कोड स्कैन करने की आवश्यकता नहीं होती!",
+            "mr": "सुवर्ण सुरक्षा नियम: तुमचा गुप्त UPI PIN फक्त पैसे पाठवण्यासाठीच वापरला जातो. पैसे मिळवण्यासाठी कधीही PIN टाकण्याची किंवा QR कोड स्कॅन करण्याची आवश्यकता नसते!"
+        }
+
+        closings = {
+            "en": "Simply tap any of the options above, and I will show you each step with its exact icon.",
+            "hi": "ऊपर दिए गए किसी भी ऐप पर टैप करें, और मैं आपको उसके आइकन सहित सभी कदम दिखाऊंगा।",
+            "mr": "वरीलपैकी कोणत्याही ॲपवर टॅप करा, मी तुम्हाला त्याच्या आयकॉनसह सर्व पायऱ्या दाखवीन."
+        }
+
+        options = [
+            {
+                "label": "Google Pay (GPay)",
+                "value": f"How to pay {context_suffix} using Google Pay",
+                "app": "gpay",
+                "description": "White icon with blue, red, yellow & green 'G' ribbon"
+            },
+            {
+                "label": "PhonePe",
+                "value": f"How to pay {context_suffix} using PhonePe",
+                "app": "phonepe",
+                "description": "Purple icon with white 'पे'"
+            },
+            {
+                "label": "Paytm",
+                "value": f"How to pay {context_suffix} using Paytm",
+                "app": "paytm",
+                "description": "White icon with blue & cyan Paytm text"
+            },
+            {
+                "label": "Other UPI / Bank App",
+                "value": f"How to pay {context_suffix} using other Bank UPI app",
+                "app": "bank",
+                "description": "BHIM, SBI YONO, HDFC, ICICI, etc."
+            }
+        ]
+
+        intro = intros.get(lang, intros["en"])
+        closing = closings.get(lang, closings["en"])
+        safety = safety_tips.get(lang, safety_tips["en"])
+
+        answer_text = f"{intro}\n\n1. Google Pay (GPay)\n2. PhonePe\n3. Paytm\n4. Other UPI / Bank App\n\n{closing}"
+
+        return {
+            "answer": answer_text,
+            "intro": intro,
+            "closing": closing,
+            "language": lang,
+            "steps": [],
+            "safety_warning": safety,
+            "related_guides": related,
+            "topic": "upi",
+            "options": options
+        }
+
+    def _build_payment_steps_response(
+        self,
+        app_name: str,
+        message: str,
+        lang: str,
+        related: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Requirement 1 & 3: Once app is selected, provides steps starting with Step 1 Visual App Identification."""
+        details = self._extract_payment_details(message)
+        amt_display = details["amount"] or ("₹5,000" if "5000" in message else "the payment amount")
+        rec_display = details["recipient"] or ("your son" if "son" in message.lower() else "the recipient")
+
+        # Determine app key
+        app_key = "gpay"
+        if "phonepe" in app_name.lower():
+            app_key = "phonepe"
+        elif "paytm" in app_name.lower():
+            app_key = "paytm"
+        elif "bhim" in app_name.lower() or "bank" in app_name.lower():
+            app_key = "bank"
+
+        # Step 1: Visual App Identification First (MANDATORY)
+        step_1_icons = {
+            "gpay": {
+                "en": "**Locate Google Pay on your screen:** Look for the white square icon with four colorful curved ribbons in blue, red, yellow, and green that form the letter 'G', with the name **GPay** or **Google Pay** underneath. Gently touch it with your finger to open.",
+                "hi": "**अपने फोन पर Google Pay खोजें:** अपनी स्क्रीन पर सफेद रंग का चौकोर आइकन देखें जिसमें नीले, लाल, पीले और हरे रंग के चार घुमावदार फीते मिलकर 'G' जैसा आकार बनाते हैं और नीचे **GPay** या **Google Pay** लिखा होता है। इसे खोलने के लिए अपनी उंगली से धीरे से छुएं।",
+                "mr": "**तुमच्या स्क्रीनवर Google Pay शोधा:** तुमच्या स्क्रीनवर पांढऱ्या रंगाचा चौकोनी आयकॉन पहा ज्यामध्ये निळा, लाल, पिवळा आणि हिरवा रंग एकत्र येऊन 'G' चा आकार बनवतात आणि खाली **GPay** किंवा **Google Pay** नाव लिहिलेले असते. ते उघडण्यासाठी बोटाने हलकेच स्पर्श करा."
+            },
+            "phonepe": {
+                "en": "**Locate PhonePe on your screen:** Look for the vibrant purple square icon with the white Devanagari letter **'पे' (Pe)** inside, with the name **PhonePe** written underneath. Gently touch it with your finger to open.",
+                "hi": "**अपने फोन पर PhonePe खोजें:** अपनी स्क्रीन पर गहरे बैंगनी (Purple) रंग का चौकोर आइकन देखें जिसके अंदर सफेद रंग में **'पे'** लिखा होता है और नीचे **PhonePe** नाम होता है। इसे खोलने के लिए अपनी उंगली से धीरे से छुएं।",
+                "mr": "**तुमच्या स्क्रीनवर PhonePe शोधा:** तुमच्या स्क्रीनवर जांभळ्या (Purple) रंगाचा चौकोनी आयकॉन पहा ज्याच्या आत पांढऱ्या अक्षरात **'पे'** लिहिलेले असते आणि खाली **PhonePe** नाव असते. ते उघडण्यासाठी बोटाने हलकेच स्पर्श करा."
+            },
+            "paytm": {
+                "en": "**Locate Paytm on your screen:** Look for the white square icon with bold dark blue and light cyan letters spelling **Paytm**, with **Pay** in dark blue and **tm** in light cyan. Gently touch it with your finger to open.",
+                "hi": "**अपने फोन पर Paytm खोजें:** अपनी स्क्रीन पर सफेद रंग का आइकन देखें जिस पर गहरे नीले और हल्के नीले अक्षरों में **Paytm** लिखा होता है। इसे खोलने के लिए अपनी उंगली से धीरे से छुएं।",
+                "mr": "**तुमच्या स्क्रीनवर Paytm शोधा:** तुमच्या स्क्रीनवर पांढऱ्या रंगाचा आयकॉन पहा ज्यावर ठळक निळ्या अक्षरात **Paytm** लिहिलेले असते. ते उघडण्यासाठी बोटाने हलकेच स्पर्श करा."
+            },
+            "bank": {
+                "en": "**Locate your Bank or UPI app on your screen:** Look for your bank's official app icon (such as SBI YONO, HDFC, ICICI, or BHIM with a green and orange triangle) on your home screen. Gently touch it with your finger to open.",
+                "hi": "**अपने फोन पर बैंक या UPI ऐप खोजें:** अपनी स्क्रीन पर अपने बैंक का ऐप (जैसे SBI YONO, HDFC, ICICI, या BHIM) खोजें और उसे खोलने के लिए धीरे से छुएं।",
+                "mr": "**तुमच्या स्क्रीनवर बँक किंवा UPI ॲप शोधा:** तुमच्या स्क्रीनवर तुमच्या बँकेचे ॲप (उदा. SBI YONO, HDFC, ICICI, किंवा BHIM) शोधा आणि उघडण्यासाठी हलकेच स्पर्श करा."
+            }
+        }
+
+        # Step 2: Payment method
+        step_2_texts = {
+            "en": "Choose payment option: On the app home screen, gently touch **'To Mobile Number'** (or **'Pay contacts'**) to send by phone number, OR touch **'Scan QR'** at the top if paying via a QR code.",
+            "hi": "भुगतान का विकल्प चुनें: मुख्य स्क्रीन पर फोन नंबर से भेजने के लिए **'To Mobile Number'** पर टैप करें, या अगर आपके पास QR कोड है तो ऊपर **'Scan QR'** पर टैप करें।",
+            "mr": "पैसे पाठवण्याचा पर्याय निवडा: मुख्य स्क्रीनवर फोन नंबरद्वारे पैसे पाठवण्यासाठी **'To Mobile Number'** वर टॅप करा, किंवा QR कोड असेल तर वर **'Scan QR'** वर टॅप करा."
+        }
+
+        # Step 3: Recipient details
+        step_3_texts = {
+            "en": f"Select recipient and verify name: Type {rec_display}'s 10-digit mobile number or select their name from your contacts. Always look at the verified bank name displayed on the screen before continuing.",
+            "hi": f"प्राप्तकर्ता चुनें और नाम जांचें: {rec_display} का 10 अंकों का मोबाइल नंबर दर्ज करें या संपर्क सूची से चुनें। स्क्रीन पर दिखाई देने वाला उनका असली बैंक नाम हमेशा ध्यान से पढ़ें।",
+            "mr": f"प्राप्तकर्ता निवडा आणि नाव तपासा: {rec_display} यांचा १० अंकी मोबाईल नंबर टाका किंवा संपर्कांमधून निवडा. स्क्रीनवर दिसणारे त्यांचे अधिकृत बँक नाव काळजीपूर्वक तपासा."
+        }
+
+        # Step 4: Amount
+        step_4_texts = {
+            "en": f"Enter amount: Touch the amount box and type **{amt_display}**. Double-check the digits so there are no extra zeros.",
+            "hi": f"राशि दर्ज करें: राशि वाले बॉक्स पर टैप करें और **{amt_display}** लिखें। शून्य (0) को दोबारा जांच लें ताकि गलत राशि न जाए।",
+            "mr": f"रक्कम टाका: रकमेच्या चौकटीवर टॅप करून **{amt_display}** टाका. शून्यांची संख्या पुन्हा तपासा जेणेकरून चुकीची रक्कम जाणार नाही."
+        }
+
+        # Step 5: UPI PIN
+        step_5_texts = {
+            "en": "Enter your secret UPI PIN: Touch the blue or purple **'Pay'** button at the bottom. A secure numeric keypad will appear. Enter your 4 or 6-digit secret UPI PIN. (Never tell this PIN out loud to anyone!).",
+            "hi": "अपना गुप्त UPI PIN दर्ज करें: नीचे **'Pay'** बटन दबाएं। एक सुरक्षित कीपैड खुलेगा। अपना 4 या 6 अंकों का गुप्त UPI PIN दर्ज करें। (यह PIN कभी किसी को बोलकर न बताएं!)।",
+            "mr": "तुमचा गुप्त UPI PIN टाका: खालील **'Pay'** बटणावर स्पर्श करा. सुरक्षित कीपॅड उघडेल. तुमचा ४ किंवा ६ अंकी गुप्त UPI PIN टाका. (हा PIN कधीही कोणाला मोठ्याने सांगू नका!)."
+        }
+
+        # Step 6: Confirmation
+        step_6_texts = {
+            "en": "Payment Success Confirmation: Keep your phone steady for a moment. A big green checkmark (✔) will appear on the screen along with a pleasant audio chime confirming the money was successfully sent.",
+            "hi": "भुगतान सफलता की पुष्टि: फोन को एक पल के लिए थामे रखें। स्क्रीन पर एक बड़ा हरा सही का निशान (✔) और एक सुखद आवाज़ आएगी, जो पुष्टि करती है कि आपके पैसे सफलतापूर्वक पहुँच गए हैं।",
+            "mr": "पेमेंट यशस्वी झाल्याची खात्री: फोन एका क्षणासाठी स्थिर धरा. स्क्रीनवर एक मोठी हिरवी टिक (✔) आणि छान आवाज येईल, ज्यावरून तुमचे पैसे यशस्वीरीत्या पाठवले गेले आहेत हे स्पष्ट होईल."
+        }
+
+        intros = {
+            "en": f"Dear friend, here is how you can safely send {amt_display} using **{app_name}**, one simple step at a time:",
+            "hi": f"नमस्ते जी! **{app_name}** से {amt_display} भेजने के सरल और सुरक्षित कदम यहाँ दिए गए हैं। आइए मिलकर करते हैं:",
+            "mr": f"नमस्कार! **{app_name}** द्वारे {amt_display} सुरक्षितपणे पाठवण्याच्या सोप्या पायऱ्या खाली दिल्या आहेत. चला एकत्र करूया:"
+        }
+
+        closings = {
+            "en": "You did wonderfully! The payment is complete and an official SMS from your bank will arrive on your phone.",
+            "hi": "बहुत बढ़िया! भुगतान पूरा हो गया है और आपके बैंक से एक आधिकारिक SMS आपके फोन पर आ जाएगा।",
+            "mr": "खूप छान! पेमेंट पूर्ण झाले असून तुमच्या बँकेकडून अधिकृत SMS तुमच्या मोबाईलवर येईल."
+        }
+
+        safety_tips = {
+            "en": "Golden Safety Rule: Always confirm payment status through your bank's official SMS, never through screenshots sent by strangers. And remember: your UPI PIN is NEVER needed to receive money!",
+            "hi": "स्वर्ण सुरक्षा नियम: केवल अपने बैंक के आधिकारिक SMS पर भरोसा करें। और याद रखें: पैसे प्राप्त करने के लिए कभी भी UPI PIN की आवश्यकता नहीं होती!",
+            "mr": "सुवर्ण सुरक्षा नियम: नेहमी तुमच्या बँकेच्या अधिकृत SMS वरच विश्वास ठेवा. आणि लक्षात ठेवा: पैसे खात्यात येण्यासाठी कधीही UPI PIN लागत नाही!"
+        }
+
+        intro = intros.get(lang, intros["en"])
+        closing = closings.get(lang, closings["en"])
+        safety = safety_tips.get(lang, safety_tips["en"])
+
+        step_1_text = step_1_icons.get(app_key, step_1_icons["gpay"]).get(lang, step_1_icons[app_key]["en"])
+        step_2_text = step_2_texts.get(lang, step_2_texts["en"])
+        step_3_text = step_3_texts.get(lang, step_3_texts["en"])
+        step_4_text = step_4_texts.get(lang, step_4_texts["en"])
+        step_5_text = step_5_texts.get(lang, step_5_texts["en"])
+        step_6_text = step_6_texts.get(lang, step_6_texts["en"])
+
+        steps = [
+            {"step": 1, "text": step_1_text},
+            {"step": 2, "text": step_2_text},
+            {"step": 3, "text": step_3_text},
+            {"step": 4, "text": step_4_text},
+            {"step": 5, "text": step_5_text},
+            {"step": 6, "text": step_6_text}
+        ]
+
+        body_parts = [intro, "\n".join(f"{s['step']}. {s['text']}" for s in steps), closing]
+
+        return {
+            "answer": "\n\n".join(body_parts),
+            "intro": intro,
+            "closing": closing,
+            "language": lang,
+            "steps": steps,
+            "safety_warning": safety,
+            "related_guides": related,
+            "topic": "upi",
+            "options": []
+        }
 
     def _parse_gemini_json(self, raw_text: str) -> Dict[str, Any]:
         """Safely parses JSON from Gemini's response, extracting from markdown codeblocks if necessary."""
@@ -319,12 +608,20 @@ class AIService:
         """Dynamically finds related step-by-step guides from the database based on query relevance."""
         if not db_guides:
             return []
+        is_action = self._is_payment_action_query(query)
+        is_safety = self._is_safety_query(query)
         q_words = [w.lower() for w in re.split(r"[\s,?!.]+", query) if len(w) > 2]
         results = []
         for g in db_guides:
             title_lower = getattr(g, "title", "").lower()
             tags_lower = (getattr(g, "tags", "") or "").lower()
             desc_lower = (getattr(g, "description", "") or "").lower()
+
+            # Intent Fix: Stop Over-Matching on "Pay". If action query and NOT safety query, skip safety template
+            if is_action and not is_safety:
+                if any(w in title_lower or w in tags_lower for w in ["safely", "golden rules", "scam", "fraud", "सुरक्षित"]):
+                    continue
+
             if any(w in title_lower or w in tags_lower or w in desc_lower for w in q_words):
                 results.append({
                     "id": g.id,
@@ -348,6 +645,9 @@ class AIService:
         if not db_guides:
             return None
 
+        is_action = self._is_payment_action_query(message)
+        is_safety = self._is_safety_query(message)
+
         # Look for the best matching guide
         q_words = [w.lower() for w in re.split(r"[\s,?!.]+", message) if len(w) > 2]
         best_guide = None
@@ -355,7 +655,20 @@ class AIService:
         for g in db_guides:
             title_lower = getattr(g, "title", "").lower()
             tags_lower = (getattr(g, "tags", "") or "").lower()
+
+            # Intent Fix: Stop Over-Matching on "Pay". If action query and NOT safety query, do not select safety guide
+            if is_action and not is_safety:
+                if any(w in title_lower or w in tags_lower for w in ["safely", "golden rules", "scam", "fraud", "सुरक्षित"]):
+                    continue
+
             score = sum(1 for w in q_words if w in title_lower or w in tags_lower)
+
+            # Extra weight for explicit intent match
+            if is_safety and any(w in title_lower for w in ["safely", "safety", "golden rules"]):
+                score += 5
+            if is_action and any(w in title_lower for w in ["send money", "pay"]):
+                score += 5
+
             if score > best_score:
                 best_score = score
                 best_guide = g

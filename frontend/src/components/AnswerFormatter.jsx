@@ -24,6 +24,41 @@ export const WikipediaIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+export const GooglePayIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <path d="M23.04 12.261c0-.82-.073-1.609-.21-2.37H12v4.481h6.19c-.267 1.442-1.079 2.663-2.298 3.479v2.893h3.722c2.178-2.006 3.426-4.96 3.426-8.483z" fill="#4285F4"/>
+    <path d="M12 23.5c3.105 0 5.71-1.03 7.613-2.793l-3.722-2.893c-1.031.69-2.35 1.1-3.891 1.1-2.993 0-5.526-2.022-6.43-4.74H1.722v2.986C3.626 20.978 7.545 23.5 12 23.5z" fill="#34A853"/>
+    <path d="M5.57 14.174c-.23-.69-.362-1.428-.362-2.174s.132-1.484.362-2.174V6.84H1.722C.946 8.386.5 10.14.5 12s.446 3.614 1.222 5.16l3.848-2.986z" fill="#FBBC05"/>
+    <path d="M12 4.989c1.689 0 3.205.58 4.398 1.718l3.3-3.3C17.705 1.637 15.099.5 12 .5 7.545.5 3.626 3.022 1.722 6.84l3.848 2.986c.904-2.718 3.437-4.837 6.43-4.837z" fill="#EA4335"/>
+  </svg>
+);
+
+export const PhonePeIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <rect width="24" height="24" rx="6" fill="#5f259f"/>
+    <text x="12" y="17" fill="#ffffff" fontSize="13" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">पे</text>
+  </svg>
+);
+
+export const PaytmIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <rect width="24" height="24" rx="6" fill="#002970"/>
+    <text x="6.5" y="15.5" fill="#ffffff" fontSize="8" fontWeight="900" fontFamily="sans-serif">Pay</text>
+    <text x="17" y="15.5" fill="#00baf2" fontSize="8" fontWeight="900" fontFamily="sans-serif">tm</text>
+  </svg>
+);
+
+export const BankIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 2 7 22 7 12 2"/>
+    <rect x="4" y="10" width="2" height="7"/>
+    <rect x="9" y="10" width="2" height="7"/>
+    <rect x="14" y="10" width="2" height="7"/>
+    <rect x="19" y="10" width="2" height="7"/>
+    <line x1="2" y1="21" x2="22" y2="21"/>
+  </svg>
+);
+
 // Helper to render inline markdown like **bold**, *italic*, and `code`
 export function FormattedText({ text, className = "" }) {
   if (!text) return null;
@@ -86,6 +121,18 @@ export function FormattedText({ text, className = "" }) {
 // Helper to detect specific icons for individual steps
 export function getStepIcon(stepText = "") {
   const lower = stepText.toLowerCase();
+  if (lower.includes('google pay') || lower.includes('gpay') || lower.includes('गूगल पे') || lower.includes('गुगल पे')) {
+    return { icon: GooglePayIcon, color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60' };
+  }
+  if (lower.includes('phonepe') || lower.includes('phone pe') || lower.includes('फोनपे')) {
+    return { icon: PhonePeIcon, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60' };
+  }
+  if (lower.includes('paytm') || lower.includes('पेटीएम')) {
+    return { icon: PaytmIcon, color: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60' };
+  }
+  if (lower.includes('bank app') || lower.includes('bhim') || lower.includes('yono') || lower.includes('बँक') || lower.includes('बैंक')) {
+    return { icon: BankIcon, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60' };
+  }
   if (lower.includes('whatsapp') || lower.includes('व्हॉट्सॲप') || lower.includes('व्हाट्सएप')) {
     return { icon: WhatsAppIcon, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60' };
   }
@@ -104,7 +151,7 @@ export function getStepIcon(stepText = "") {
   if (lower.includes('call') || lower.includes('phone') || lower.includes('कॉल') || lower.includes('फोन')) {
     return { icon: Phone, color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60' };
   }
-  if (lower.includes('upi') || lower.includes('pin') || lower.includes('otp') || lower.includes('bank') || lower.includes('पैसे')) {
+  if (lower.includes('pin') || lower.includes('otp') || lower.includes('पैसे') || lower.includes('upi')) {
     return { icon: ShieldCheck, color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60' };
   }
   if (lower.includes('mic') || lower.includes('speak') || lower.includes('voice') || lower.includes('आवाज़') || lower.includes('आवाज')) {
@@ -121,6 +168,17 @@ export function TopicBadgeAndActions({ topic = "general", queryText = "", steps 
   const cleanQuery = queryText ? encodeURIComponent(queryText) : '';
   const langSubdomain = language === 'hi' ? 'hi' : language === 'mr' ? 'mr' : 'en';
 
+  // Fix Intent Matching (Requirement 1): Only show 'UPI Payment Safety' if explicitly asked about safety/scams
+  const isSafetyQuery = queryText && (
+    queryText.toLowerCase().includes('safe') ||
+    queryText.toLowerCase().includes('scam') ||
+    queryText.toLowerCase().includes('fraud') ||
+    queryText.toLowerCase().includes('golden rule') ||
+    queryText.toLowerCase().includes('सुरक्षित') ||
+    queryText.toLowerCase().includes('धोखा') ||
+    queryText.toLowerCase().includes('फसवणूक')
+  );
+
   const topicConfig = {
     whatsapp: {
       label: 'WhatsApp Topic',
@@ -132,10 +190,14 @@ export function TopicBadgeAndActions({ topic = "general", queryText = "", steps 
       icon: Wifi,
       badgeColor: 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border-blue-300/60 dark:border-blue-800',
     },
-    upi: {
+    upi: isSafetyQuery ? {
       label: 'UPI Payment Safety',
       icon: ShieldCheck,
       badgeColor: 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border-amber-300/60 dark:border-amber-800',
+    } : {
+      label: 'UPI & Money Transfer',
+      icon: GooglePayIcon,
+      badgeColor: 'bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 border-teal-300/60 dark:border-teal-800',
     },
     youtube: {
       label: 'YouTube Videos',

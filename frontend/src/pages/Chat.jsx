@@ -9,7 +9,10 @@ import { aiAPI } from '../api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import VoiceButton from '../components/VoiceButton';
 import TextToSpeech from '../components/TextToSpeech';
-import { FormattedText, TopicBadgeAndActions, getStepIcon } from '../components/AnswerFormatter';
+import { 
+  FormattedText, TopicBadgeAndActions, getStepIcon,
+  GooglePayIcon, PhonePeIcon, PaytmIcon, BankIcon 
+} from '../components/AnswerFormatter';
 
 const CATEGORIZED_PROMPTS = {
   en: [
@@ -156,6 +159,7 @@ export default function Chat() {
         safety_warning: response.safety_warning,
         related_guides: response.related_guides || [],
         topic: response.topic || 'general',
+        options: response.options || [],
         query: query.trim()
       };
 
@@ -377,6 +381,66 @@ export default function Chat() {
                 {introText && (
                   <div className="text-slate-800 dark:text-slate-100 font-normal">
                     <FormattedText text={introText} />
+                  </div>
+                )}
+
+                {/* Payment App Selection Flow (Requirement 2) */}
+                {msg.options && msg.options.length > 0 && (
+                  <div className="pt-2 space-y-3">
+                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>{language === 'hi' ? 'अपना पेमेंट ऐप चुनें:' : language === 'mr' ? 'तुमचे पेमेंट ॲप निवडा:' : 'Select Your Payment App:'}</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {msg.options.map((opt, oIdx) => {
+                        let AppIcon = BankIcon;
+                        let borderHover = "hover:border-teal-500";
+                        let iconBg = "bg-slate-100 dark:bg-slate-800 text-slate-700";
+                        if (opt.app === 'gpay') {
+                          AppIcon = GooglePayIcon;
+                          borderHover = "hover:border-blue-500 hover:bg-blue-50/40 dark:hover:bg-blue-950/30";
+                          iconBg = "bg-blue-50 dark:bg-blue-950/80";
+                        } else if (opt.app === 'phonepe') {
+                          AppIcon = PhonePeIcon;
+                          borderHover = "hover:border-purple-500 hover:bg-purple-50/40 dark:hover:bg-purple-950/30";
+                          iconBg = "bg-purple-50 dark:bg-purple-950/80";
+                        } else if (opt.app === 'paytm') {
+                          AppIcon = PaytmIcon;
+                          borderHover = "hover:border-sky-500 hover:bg-sky-50/40 dark:hover:bg-sky-950/30";
+                          iconBg = "bg-sky-50 dark:bg-sky-950/80";
+                        } else {
+                          AppIcon = BankIcon;
+                          borderHover = "hover:border-teal-500 hover:bg-teal-50/40 dark:hover:bg-teal-950/30";
+                          iconBg = "bg-teal-50 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300";
+                        }
+
+                        return (
+                          <button
+                            key={oIdx}
+                            type="button"
+                            onClick={() => handleSendMessage(opt.value)}
+                            className={`p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200/90 dark:border-slate-800 ${borderHover} text-left transition shadow-xs flex items-center justify-between gap-3 group cursor-pointer active:scale-98`}
+                          >
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs ${iconBg}`}>
+                                <AppIcon className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">
+                                  {opt.label}
+                                </p>
+                                {opt.description && (
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                    {opt.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-teal-600 dark:text-teal-400 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition flex-shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

@@ -99,5 +99,6 @@ async def chat_with_ai(
         steps=ai_result.get("steps", []),
         safety_warning=combined_warning,
         related_guides=ai_result.get("related_guides", []),
-        topic=ai_result.get("topic")
+        topic=ai_result.get("topic"),
+        options=ai_result.get("options", [])
     )
