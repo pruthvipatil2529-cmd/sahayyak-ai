@@ -404,9 +404,12 @@ export default function Chat() {
                         </button>
                       )}
                     </div>
-                    <p className="font-mono text-[11px] opacity-90 break-all bg-white/70 dark:bg-slate-900/70 p-2 rounded-lg">
-                      {msg.api_error}
-                    </p>
+                    {/* Raw debug error box visible only in development mode */}
+                    {import.meta.env.DEV && (
+                      <p className="font-mono text-[11px] opacity-80 break-all bg-white/70 dark:bg-slate-900/70 p-2 rounded-lg">
+                        Debug: {msg.api_error}
+                      </p>
+                    )}
                   </div>
                 )}
 

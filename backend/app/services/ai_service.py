@@ -86,6 +86,11 @@ Strict Rules for Simple, Beginner-Friendly Answers:
    - If Target Language is 'en' (English): Reply in gentle, clear plain English.
    - Always strictly respond in the specified Target Language.
 
+8. SPELLING, VOICE, AND DIALECT TOLERANCE:
+   - The user may type with spelling mistakes, missing spaces, Hinglish, mixed Devanagari and Latin script, or a voice transcript. Silently understand the intended question. Never mention the mistake, never repeat the misspelled word, and never ask the user to correct it.
+   - If the question is genuinely ambiguous (for example "send photo" without saying which app), still give the most likely answer and end the intro with one short question offering the alternative.
+   - Grounding: If a reference guide is supplied and it fits the question, follow its steps faithfully while speaking in your warm, encouraging persona.
+
 Required JSON Output Schema:
 You MUST ALWAYS respond with a single valid JSON object with these exact keys:
 {
@@ -97,16 +102,19 @@ You MUST ALWAYS respond with a single valid JSON object with these exact keys:
     "Step 3: ..."
   ],
   "safety_tip": "A crucial safety precaution if money, banking, links, or strangers are involved, or a helpful beginner tip. Return null if not needed.",
-  "closing": "An encouraging concluding sentence reassuring them that they did a great job and can ask anything anytime."
+  "closing": "An encouraging concluding sentence reassuring them that they did a great job and can ask anything anytime.",
+  "confidence": "high | medium | low",
+  "clarify": "one short clarifying question if confidence is low, otherwise null"
 }
 """
 
 class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        raw_model = settings.GEMINI_MODEL or "gemini-1.5-flash"
-        if "3.5" in raw_model or raw_model == "gemini-pro":
-            raw_model = "gemini-1.5-flash"
+        raw_model = settings.GEMINI_MODEL or "gemini-3.8-flash"
+        # Auto-migrate retired or outdated models (gemini-2.0, gemini-1.5, gemini-pro, gemini-3.5) to gemini-3.8-flash
+        if any(v in raw_model.lower() for v in ["2.0", "1.5", "3.5", "gemini-pro"]):
+            raw_model = "gemini-3.8-flash"
         self.model_name = raw_model
         self._gemini_client = None
         self._init_gemini()
@@ -120,7 +128,10 @@ class AIService:
                 self._gemini_client = genai.GenerativeModel(
                     model_name=self.model_name,
                     system_instruction=SYSTEM_PROMPT,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={
+                        "response_mime_type": "application/json",
+                        "temperature": 0.3
+                    }
                 )
                 logger.info(f"Google Gemini AI client configured successfully with model {self.model_name}.")
             except Exception as e:
@@ -228,11 +239,13 @@ class AIService:
         # 3. Call Gemini dynamically with model fallback
         raw_text = None
         last_api_error = None
-        models_to_try = [self.model_name, "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+        models_to_try = [self.model_name, "gemini-3.8-flash"]
         unique_models = []
         for m in models_to_try:
-            if m and m not in unique_models and "3.5" not in m:
+            if m and m not in unique_models and not any(v in m.lower() for v in ["2.0", "1.5", "3.5", "gemini-pro"]):
                 unique_models.append(m)
+        if not unique_models:
+            unique_models = ["gemini-3.8-flash"]
 
         for model_candidate in unique_models:
             try:
@@ -240,7 +253,10 @@ class AIService:
                 client = genai.GenerativeModel(
                     model_name=model_candidate,
                     system_instruction=SYSTEM_PROMPT,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={
+                        "response_mime_type": "application/json",
+                        "temperature": 0.3
+                    }
                 )
                 response = await asyncio.wait_for(
                     asyncio.to_thread(client.generate_content, prompt_text),
